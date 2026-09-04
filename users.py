@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from auth import create_access_token, hash_password
+from auth import create_access_token, hash_password, verify_password
 from database import get_db
 from models import User
 from schemas import UserCreate, UserLogin, UserResponse
@@ -11,8 +11,8 @@ router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == user.username).first()
-    if user:
+    check_user = db.query(User).filter(User.username == user.username).first()
+    if check_user:
         raise HTTPException(status_code=400, detail="Usuario ja cadastrado")
 
     hashed = hash_password(user.password)
@@ -27,14 +27,14 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return user
+    return new_user
 
 
-@router.post("/login", response_model=UserLogin)
+@router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
 
-    if not db_user or not verify_pw(user.password, db_user.hPassword):
+    if not db_user or not verify_password(user.password, db_user.hPassword):
         raise HTTPException(status_code=401, detail="Usuario ou senha incorretos")
 
     access_token = create_access_token({"sub": db_user.username})
