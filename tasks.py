@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from auth import get_curr_user
@@ -30,3 +30,51 @@ def list_tasks(
 ):
     tasks = db.query(Task).filter(Task.user_id == current_user.id).all()
     return tasks
+
+
+@router.put("/tasks/{task_id}", response_model=TaskResponse)
+def update_task(
+    task_id: int,
+    task_update: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_curr_user),
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+
+    if task is None:
+        raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
+
+    if task.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Voce nao tem permissao para editar essa tarefa!"
+        )
+
+    task.title = task_update.title
+
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    return task
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_curr_user),
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+
+    if task is None:
+        raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
+
+    if task.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Voce nao tem permissao para editar essa tarefa!"
+        )
+
+    db.delete(task)
+    db.commit()
+
+    return {"detail": "Tarefa deletada com sucesso"}
