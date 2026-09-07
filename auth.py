@@ -42,7 +42,8 @@ def decode_access_token(token: str):
         return payload
     except jwt.ExpiredSignatureError:
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"Erro: - {e}")
         return None
 
 
@@ -59,6 +60,8 @@ def get_curr_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)):
 
     if user is None:
         raise HTTPException(status_code=401, detail="Usuario  nao encontrado")
+
+    return user
 
 
 # token = create_access_token({"test": "w"})
